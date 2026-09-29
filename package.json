@@ -1,18 +1,20 @@
 {
   "name": "festival-camping",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Backend para la gestión de reservas de carpas en las zonas de camping - Festival Picnic 2026",
+  "main": "dist/app.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "prisma skills sync || exit 0",
     "dev": "nodemon --ext ts,json --exec 'tsx ./src/app.ts'",
-    "sync": "npx prisma db pull && npx prisma generate"
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "sync": "npx prisma db pull && npx prisma generate",
+    "test": "node ../kit-estudiantes/pruebas/correr.mjs camping http://localhost:3000",
+    "test:suite": "node tests/suite-completa.mjs"
   },
-  "keywords": [],
+  "keywords": ["express", "typescript", "prisma", "clean-architecture", "festival-picnic-2026"],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^6.19.3",

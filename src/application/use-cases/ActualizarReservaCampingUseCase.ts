@@ -8,7 +8,13 @@ export class ActualizarReservaCampingUseCase {
   constructor(private repository: IReservaCampingRepository) {}
 
   async ejecutar(id: number, body: any): Promise<ReservaCamping> {
-    // 1. Validar que solo vengan campos editables
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      const err: any = new Error('El cuerpo debe ser un objeto JSON');
+      err.status = 400;
+      throw err;
+    }
+
+    // 1. Validar que solo vengan campos editables (400)
     const llaves = Object.keys(body);
     for (const llave of llaves) {
       if (!CAMPOS_PERMITIDOS.includes(llave)) {
@@ -18,21 +24,7 @@ export class ActualizarReservaCampingUseCase {
       }
     }
 
-    // 2. Verificar existencia de la reserva
-    const reservaActual = await this.repository.obtenerPorId(id);
-    if (!reservaActual || reservaActual.state === 'REMOVED') {
-      const err: any = new Error('Reserva no encontrada');
-      err.status = 404;
-      throw err;
-    }
-
-    // Combinar datos
-    const nuevaZonaId = body.zona_id !== undefined ? body.zona_id : reservaActual.zona_id;
-    const nuevaFechaEntrada = body.fecha_entrada !== undefined ? body.fecha_entrada : reservaActual.fecha_entrada;
-    const nuevaFechaSalida = body.fecha_salida !== undefined ? body.fecha_salida : reservaActual.fecha_salida;
-    const nuevasPersonas = body.personas !== undefined ? body.personas : reservaActual.personas;
-
-    // Validaciones 400 de los campos si vienen en body
+    // Validaciones 400 individuales de formato/tipo si los campos vienen
     if (body.zona_id !== undefined) {
       if (typeof body.zona_id !== 'number' || !Number.isInteger(body.zona_id) || body.zona_id <= 0) {
         const err: any = new Error('zona_id debe ser un entero positivo');
@@ -65,7 +57,20 @@ export class ActualizarReservaCampingUseCase {
       }
     }
 
-    // Validar combinación de fechas
+    // 2. Verificar existencia de la reserva (404)
+    const reservaActual = await this.repository.obtenerPorId(id);
+    if (!reservaActual || reservaActual.state === 'REMOVED') {
+      const err: any = new Error('Reserva no encontrada');
+      err.status = 404;
+      throw err;
+    }
+
+    // Combinar datos
+    const nuevaZonaId = body.zona_id !== undefined ? body.zona_id : reservaActual.zona_id;
+    const nuevaFechaEntrada = body.fecha_entrada !== undefined ? body.fecha_entrada : reservaActual.fecha_entrada;
+    const nuevaFechaSalida = body.fecha_salida !== undefined ? body.fecha_salida : reservaActual.fecha_salida;
+
+    // Validar combinación de fechas (400)
     if (nuevaFechaSalida <= nuevaFechaEntrada) {
       const err: any = new Error('fecha_salida debe ser posterior a fecha_entrada');
       err.status = 400;
@@ -81,7 +86,7 @@ export class ActualizarReservaCampingUseCase {
       throw err;
     }
 
-    // Si cambió de zona o se evalúa la zona
+    // 3. Verificar existencia de la zona (404)
     const zona = await this.repository.obtenerZonaPorId(nuevaZonaId);
     if (!zona) {
       const err: any = new Error(`La zona con id ${nuevaZonaId} no existe`);
@@ -89,13 +94,14 @@ export class ActualizarReservaCampingUseCase {
       throw err;
     }
 
+    // 4. Tipo de zona compatible (400)
     if (zona.tipo !== 'CAMPING') {
       const err: any = new Error('La zona debe ser de tipo CAMPING');
       err.status = 400;
       throw err;
     }
 
-    // Si cambia de zona, validar capacidad de la nueva zona
+    // 5. Regla de negocio: capacidad máxima si cambia de zona (409)
     if (body.zona_id !== undefined && body.zona_id !== reservaActual.zona_id) {
       const ocupadas = await this.repository.contarReservasActivasPorZona(nuevaZonaId);
       if (ocupadas >= zona.capacidad) {
