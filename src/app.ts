@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import reservaCampingRoutes from './interface/http/routes/reservaCampingRoutes.js';
@@ -10,16 +10,31 @@ export const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Montar rutas bajo el prefijo /api/reservas-camping
+// Endpoint de salud
+app.get('/api/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'OK', microservice: 'camping' });
+});
+
+// Montar rutas del módulo camping
 app.use('/api/reservas-camping', reservaCampingRoutes);
 
 // Manejo general de rutas no encontradas
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// Middleware de manejo global de errores (nunca expone stack trace)
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  const status = typeof err.status === 'number' ? err.status : 500;
+  res.status(status).json({
+    error: err.message || 'Error interno del servidor',
+  });
 });
 
 const PORT = Number(process.env.PORT) || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor Festival Camping corriendo en el puerto ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor Festival Camping corriendo en el puerto ${PORT}`);
+  });
+}
